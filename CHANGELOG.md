@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `lua_check` tracks scope: function parameters, loop variables and forward-declared locals are no longer reported as implicit globals (reassigning a parameter, as in `s = trim(s)`, was a false positive). Global `function foo()` definitions are now reported.
+- New `lua_check` warnings: `ctl.Trigger = ...` instead of `ctl:Trigger()`, `Timer.CallAfter` with its arguments reversed, a TcpSocket that never handles Closed/Error/Timeout, and a local Timer that only its own EventHandler refers to (QSC's Timer help warns the engine will eventually delete these). A global `t = Timer.New()`, QSC's own recommended form, isn't reported as an implicit global.
+- `qsys://lua-api`: Timer example no longer uses a local timer, plus a Pitfalls section (timers, controls, sockets, HttpClient, Lua 5.3).
+- `qsys://design-guide`: a section on unattended venues (fire input, schedules, recovery after a power cut, device health, staff controls) and a matching checklist item.
+- luaparser floor raised to 3.3: 3.2.x doesn't import on Python 3.13 (`typing.io` was removed).
+
 ## 0.1.0 (2026-10-13)
 
 First public release.

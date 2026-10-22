@@ -17,7 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp[cli]>=2.3",
-    "luaparser>=3.2",
+    "luaparser>=3.3",
     "pywinauto>=0.6.8",
     "comtypes>=1.4",
     "mss>=9.0",

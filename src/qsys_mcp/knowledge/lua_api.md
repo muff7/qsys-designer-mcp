@@ -31,11 +31,12 @@ NamedControl.GetString / SetString / GetPosition / SetPosition
 
 ## Timers
 ```lua
-local t = Timer.New()
+t = Timer.New()   -- not local: see "Timers" under Pitfalls
 t.EventHandler = function() --[[ poll ]] end
-t:Start(1.0)    -- seconds, repeats
-t:Stop()
-Timer.CallAfter(function() print("later") end, 2)
+t:Start(1.0)    -- seconds, repeats until :Stop()
+t:Stop() ; t:IsRunning()
+Timer.CallAfter(function() print("later") end, 2)   -- (function, seconds); one-shot, nothing to cancel
+Timer.Now()     -- epoch seconds; the emulator uses the Windows clock, the Core its own
 ```
 
 ## TCP
@@ -81,3 +82,31 @@ sp.EventHandler = function(port, evt) if evt == SerialPorts.Events.Data then por
 `GetControlLayout` (returns layout, graphics), `GetPins`, `GetComponents`, `GetWiring`.
 The runtime code lives inside `if Controls then ... end`. Installed plugins go in
 `Documents\QSC\Q-Sys Designer\Plugins` and need a Designer restart (or Tools > Reload Plugins in newer versions).
+
+## Pitfalls
+Checked against the Designer 10.4 and 10.5 offline help where a page is named; the rest is Lua 5.3 behaviour or seen on real Cores.
+
+**Timers**
+- `Timer.htm`: "Do not scope your Timers locally. If you do so, the scripting engine will eventually delete the timer and the event callback, forcing it to stop." The real risk is a top-level `local t = Timer.New()` that only its own `t.EventHandler` refers to (heartbeats, self-restarting polls, reconnect supervisors): once the script's top level has run, nothing holds it. Make it a global (`t = Timer.New()`, as in QSC's examples), or keep timers in a table the script keeps. `lua_check` warns about the risky case and doesn't report global timers as implicit globals.
+- `Timer.CallAfter` can't be cancelled. For debounce use a `Timer.New()` and call `:Start()` again on each event, which restarts the countdown.
+- A delay of 0 fires straight away. `t:Start(math.max(0, target - now))` with a target already in the past fires immediately, so check `target > now` first.
+
+**Controls**
+- Trigger controls: call `ctl:Trigger()`. Writing `ctl.Trigger = true` does nothing.
+- Trigger, Momentary and Toggle buttons fire differently. Momentary fires on press and on release (`.Boolean` true, then false), so a handler that doesn't check `.Boolean` runs twice per press.
+- `Controls.Inputs[n]` with nothing wired to pin n is nil, and indexing it raises "attempt to index ... (a nil value)" (`Controls_IO.htm`).
+- The whole script re-runs when it's edited or the design restarts. Locals go back to their initial values but controls keep theirs, so read the controls' current state at start-up instead of assuming defaults.
+- Renaming a control in the Text Controller doesn't update `Controls.OldName` in the code. The old name just reads nil.
+
+**Sockets**
+- TCP gives you bytes, not lines. In the Data event, loop `ReadLine` until it returns nil (`TcpSocket.htm`), and handle `Closed`, `Error` and `Timeout` as well as `Data` or a dead socket goes unnoticed.
+- Only one script can listen on a given UDP port on a given IP (`UdpSocket.htm`). If a device always replies to a fixed port, one script has to receive for all of them.
+- `Notifications.Publish` inside a `Notifications.Subscribe` callback raises an error (`Notifications.htm`).
+
+**HttpClient** (seen on real Cores)
+- `err` is `""` on success, not nil, so `if err then` is always true. Check `err ~= nil and err ~= ""`.
+- `code` can arrive as a string such as `"403.0"`, and `code == 403` never matches it. Normalise once with `code = tonumber(code) or code`.
+
+**Lua 5.3**
+- Control `.Value` is a float, often slightly off a whole number. `string.format("%d", v)` errors if `v` has a fractional part, and `t[v]` misses `t[3]` when `v` is 2.9999. Round with `math.floor(v + 0.5)` before indexing or formatting.
+- `tostring(nil)` is `"nil"`, which ends up in status text. Use `tostring(x or "")`.

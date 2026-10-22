@@ -27,6 +27,15 @@
 - Use Q-LAN on a properly configured network (QoS, IGMP snooping with a querier, and no EEE on switch ports for audio).
 - Dante: check the sample rate (48 kHz) and latency settings. Name Dante channels in the design to match the physical labels.
 
+## Unattended venues (museums, galleries, exhibitions)
+These systems run all day with nobody technical on site, so the design has to look after itself.
+- **Fire and life-safety input.** Bring the fire panel in on a GPIO or contact input, and have it mute programme audio and stop shows at the DSP, not just on the UCI. Latch the alarm and return to normal only after a delay once it clears. At start-up the script must read the input's current state, so a reboot during an alarm doesn't come up as normal. Give staff a test mode that exercises the interlock without a real alarm.
+- **Daily schedule.** Power displays, projectors and media players on and off on a schedule. Handle midnight rollover and daylight saving, and make sure a "late close" override can only push the off time later. An override time that has already passed must not fire the off action straight away.
+- **Recovery after a power cut or Core reboot.** On start-up, scripts should push the state they want rather than trust each device to remember. Reconnect to devices with backoff. Stagger power-on (relays, smart plugs, projectors) to avoid inrush, and bring up sources before the displays that show them.
+- **Health you can see.** Every external device (projector, media player, PC, smart plug) gets a status indicator on a technician UCI, and ideally a Status component for Core monitoring. Show "last seen" or the failure reason as text, not just a red LED.
+- **Staff controls.** Front-of-house UCIs should be small and hard to misuse: show on/off, a limited volume range with a capped maximum, and a technician page behind a PIN.
+- **Volume.** If there's a global or per-gallery volume, apply the fire mute after it, so changing a preset can't override the mute.
+
 ## Review checklist
 1. All components named descriptively. No default "Gain 1", "Mixer 2".
 2. No unconnected inputs that should carry signal. No stray outputs feeding nothing (check the Inspector).
@@ -36,3 +45,4 @@
 6. Scripts: no implicit globals, no blocking loops, and status/connection indicators for every external device.
 7. Inventory matches the hardware (models, names, IPs). Status/Health components are wired to monitoring.
 8. UCIs: controls use ranges and steps that make sense, and a mute/volume is present for every user-facing zone.
+9. Unattended sites: the fire input mutes at the DSP and is re-read at start-up, schedules survive midnight and daylight-saving changes, and every external device has a visible health indicator.
